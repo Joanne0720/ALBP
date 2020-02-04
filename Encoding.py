@@ -8,10 +8,10 @@ class Solution:
         result = []
 
         for _ in range(len(matrix)):
-            taskset = []
+            taskSet = []
             for i in range(len(matrix)):
-                if all(matrix[:, i]) == 0 and i not in result: taskset.append(i)
-            task = random.choice(taskset)
+                if all(matrix[:, i]) == 0 and i not in result: taskSet.append(i)
+            task = random.choice(taskSet)
             result.append(task)
             for n in range(len(matrix)): matrix[task, n] = 0
 
