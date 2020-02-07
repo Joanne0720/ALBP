@@ -32,13 +32,11 @@ def decoding(task_sequence, time_list, nb_station):
             task_to_station.append(currTasks)
             station_num += 1
         if task_unassigned:
-            workload[station_num-1] += sum(time_list[_] for _ in task_unassigned)
-            task_to_station[station_num-1] += task_unassigned
+            workload[-1] += sum(time_list[_] for _ in task_unassigned)
+            task_to_station[-1] += task_unassigned
         for m in range(len(workload) - 1):
             potential_task = task_to_station[m+1][0]
             potential_workload.append(workload[m] + time_list[potential_task])
         cycletime, init_cycletime = max(workload), min(potential_workload)
-    return cycletime, task_to_station
-
-
+    return {'Sequence': task_sequence, 'CycleTime': cycletime, 'Assignment': task_to_station}
 
