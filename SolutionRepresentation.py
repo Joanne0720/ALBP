@@ -38,5 +38,5 @@ def decoding(task_sequence, time_list, nb_station):
             potential_task = task_to_station[m+1][0]
             potential_workload.append(workload[m] + time_list[potential_task])
         cycletime, init_cycletime = max(workload), min(potential_workload)
-    return {'Sequence': task_sequence, 'CycleTime': cycletime, 'Assignment': task_to_station}
+    return {'Sequence': task_sequence, 'CycleTime': cycletime, 'Assignment': task_to_station, 'Workload': workload}
 
