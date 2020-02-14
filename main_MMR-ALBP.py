@@ -5,7 +5,7 @@ from SolutionRepresentation import decoding
 from MinMaxRegret import findCriticalStation
 from Exploitation import ShrinkingEncircling
 from Exploitation import SpiralUpdating
-from CplexModel_ALBP import ALBP
+from MPModel_ALBP import ALBP
 
 # Data
 PrecedenceTasks = [                                       # immediate precedence tasks of task i

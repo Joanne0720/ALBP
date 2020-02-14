@@ -4,6 +4,7 @@ from docplex.cp.config import context
 context.solver.agent = 'local'
 context.solver.local.execfile = '/Applications/CPLEX_Studio_Community129/cpoptimizer/bin/x86-64_osx/cpoptimizer'
 
+
 """ Initialize the problem data """
 # operating time of task i
 TaskTime = [81, 109, 65, 51, 92, 77, 51, 50, 43, 45, 76]
@@ -31,34 +32,35 @@ TASKS = range(len(TaskTime))
 # workstations set
 WORKSTATIONS = range(nbStations)
 
-""" Build the model """
-# Create CPO model
-myModel = CpoModel()
+def ALBP(TaskTime, nbStations, PrecedenceTasks):
+    """ Build the model """
+    # Create CPO model
+    myModel = CpoModel()
 
-# Assign tasks to workstation
-WhichWorkstation = myModel.integer_var_list(len(TASKS), 0, nbStations - 1)
+    # Assign tasks to workstation
+    WhichWorkstation = myModel.integer_var_list(len(TASKS), 0, nbStations - 1)
 
-# Cycle time
-CycleTime = myModel.integer_var(max(TaskTime) / nbStations, sum(TaskTime))
+    # Cycle time
+    CycleTime = myModel.integer_var(sum(TaskTime) // nbStations, sum(TaskTime))
 
-# Add station load constraints
-for k in WORKSTATIONS:
-    load = 0
+    # Add station load constraints
+    for k in WORKSTATIONS:
+        load = 0
+        for i in TASKS:
+            flag = WhichWorkstation[i] == k
+            load += TaskTime[i] * flag
+        myModel.add(load <= CycleTime)
+
+    # Add precedence constraints
     for i in TASKS:
-        flag = WhichWorkstation[i] == k
-        load += TaskTime[i] * flag
-    myModel.add(load <= CycleTime)
+        for j in PrecedenceTasks[i]:
+            myModel.add(WhichWorkstation[j] <= WhichWorkstation[i])
 
-# Add precedence constraints
-for i in TASKS:
-    for j in PrecedenceTasks[i]:
-        myModel.add(WhichWorkstation[j] <= WhichWorkstation[i])
+    # Create model objective
+    myModel.add(myModel.minimize(CycleTime))
 
-# Create model objective
-myModel.add(myModel.minimize(CycleTime))
+    """ Solve model """
+    solution = myModel.solve(FailLimit=100000, TimeLimit=10)
 
-""" Solve model """
-r = myModel.solve(FailLimit=100000, TimeLimit=10)
-
-""" Print solution """
-r.print_solution()
+    """ Print solution """
+    return solution.get_value(CycleTime)

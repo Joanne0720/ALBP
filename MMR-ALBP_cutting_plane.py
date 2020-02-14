@@ -1,4 +1,4 @@
-from CplexModel_ALBP import ALBP
+from CPModel_ALBP import ALBP
 from docplex.cp.model import CpoModel
 from docplex.cp.config import context
 context.solver.agent = 'local'
@@ -38,22 +38,24 @@ myModel = CpoModel()
 WhichWorkstation = myModel.integer_var_list(len(TASKS), 0, nbStations - 1)
 '''Cycle time'''
 CycleTime = myModel.integer_var(max(TaskTimeMin), sum(TaskTimeMax))
-
-# Regret = myModel.integer_var()
-# TaskTimeScenario = myModel.integer_var_list(TASKS)
+'''Regret value'''
+Regret = myModel.integer_var()
+'''Task time in scenario'''
+TaskTimeScenario = myModel.integer_var_list(len(TASKS))
 # OptimalCycleTime = myModel.integer_var(ub=sum(TaskTimeMax))
 
 '''Create constraints'''
-# s = 0
-# for i in TASKS:
-#     myModel.add_if_then(WhichWorkstation[i, 0] == 1, TaskTimeScenario[i] == TaskTimeMax[i])
-#     myModel.add_if_then(WhichWorkstation[i, 0] == 0, TaskTimeScenario[i] == TaskTimeMin[i])
-# temp = []
-# for _ in TASKS:
-#     temp.append(TaskTimeScenario[s, _])
-# OptimalCycleTime[s] = ALBP(temp, nbStations, PrecedenceTasks)
-# myModel.add(CycleTime == sum(TaskTimeMax[i] * WhichWorkstation[i, 1] for i in TASKS))
-# myModel.add(Regret >= CycleTime)
+s = 0
+temp = []
+load = 0
+for i in TASKS:
+    flag = WhichWorkstation[i] == s
+    temp.append(TaskTimeMax[i]*flag + TaskTimeMin[i]*(1-flag))
+    load += TaskTimeMax[i]*flag
+OptimalCycleTime = ALBP(temp, nbStations, PrecedenceTasks)
+
+myModel.add(CycleTime == load)
+myModel.add(Regret >= CycleTime - OptimalCycleTime)
 
 '''ALBP constraints'''
 # Add station load constraints
@@ -63,14 +65,14 @@ for k in WORKSTATIONS:
         flag = WhichWorkstation[i] == k
         load += TaskTimeMin[i]*flag
     myModel.add(load <= CycleTime)
-
 # Add precedence constraints
 for i in TASKS:
     for j in PrecedenceTasks[i]:
         myModel.add(WhichWorkstation[j] <= WhichWorkstation[i])
-''''''
+
+
 '''Create model objective'''
-myModel.add(myModel.minimize(CycleTime))
+myModel.add(myModel.minimize(Regret))
 
 
 r = myModel.solve(FailLimit=100000, TimeLimit=10)
