@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/ALBP.iml" filepath="$PROJECT_DIR$/.idea/ALBP.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../MMR-ALBP_CPLEX/.idea/MMR-ALBP_CPLEX.iml" filepath="$PROJECT_DIR$/../MMR-ALBP_CPLEX/.idea/MMR-ALBP_CPLEX.iml" />
     </modules>
   </component>
 </project>
