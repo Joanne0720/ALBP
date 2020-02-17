@@ -1,11 +1,9 @@
 from docplex.mp.model import Model
 
-# '''Initialize the problem data'''
-# TaskTime = [81, 109, 65, 51, 92, 77, 51, 50, 43, 45, 76]  # operating time of task i
-# nbStations = 5                                            # number of workstations
-# TASKS = range(len(TaskTime))                              # tasks set
-# WORKSTATIONS = range(nbStations)                          # workstations set
-# PrecedenceTasks = [                                       # immediate precedence tasks of task i
+'''Default problem data'''
+# d_TaskTime = [81, 109, 65, 51, 92, 77, 51, 50, 43, 45, 76]  # operating time of task i
+# d_nbStations = 5                                            # number of workstations
+# d_PrecedenceTasks = [                                       # immediate precedence tasks of task i
 #     [],
 #     [1],
 #     [1],
@@ -30,8 +28,9 @@ def ALBP(TaskTime, nbStations, PrecedenceTasks):
     myModel = Model()
 
     '''Create model variables'''
-    assign_task_to_station = myModel.binary_var_matrix(TASKS, WORKSTATIONS)
-    cycle_time = myModel.integer_var(0)
+    assign_task_to_station = myModel.binary_var_matrix(TASKS, WORKSTATIONS, name='Assignment')
+    cycle_time = myModel.integer_var(0, name='Cycle time')
+    myModel.assignment = assign_task_to_station
 
     '''Create constraints'''
     for k in WORKSTATIONS:
@@ -39,12 +38,14 @@ def ALBP(TaskTime, nbStations, PrecedenceTasks):
     for i in TASKS:
         myModel.add(sum(assign_task_to_station[i, k] for k in WORKSTATIONS) == 1)
         for j in PrecedenceTasks[i]:
-            myModel.add(sum(k * assign_task_to_station[j, k] for k in WORKSTATIONS) <= sum(
+            myModel.add(sum(k * assign_task_to_station[j-1, k] for k in WORKSTATIONS) <= sum(
                 kk * (assign_task_to_station[i, kk]) for kk in WORKSTATIONS))
 
     '''Create model objective'''
     myModel.minimize(cycle_time)
+    return myModel
 
-    return myModel.solve()
 
-print(ALBP(TaskTime, nbStations, PrecedenceTasks))
+# m = ALBP(d_TaskTime, d_nbStations, d_PrecedenceTasks)
+# m.solve()
+# m.print_solution()
