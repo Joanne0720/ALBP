@@ -2,7 +2,6 @@ import random
 import copy
 from SolutionRepresentation import encoding
 from SolutionRepresentation import decoding
-from MinMaxRegret import findCriticalStation
 from Exploitation import ShrinkingEncircling
 from Exploitation import SpiralUpdating
 from MPModel_ALBP import ALBP
@@ -25,14 +24,28 @@ pm = [[0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1], [0, 
       [0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1], [0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1], [0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1],
       [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
       [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]
-time_interval = [[81, 91], [109, 119], [65, 75], [51, 61], [92, 102], [77, 87],
-                 [51, 61], [50, 60], [43, 53], [45, 55], [76, 86]]
+time_interval = [[81, 121], [109, 159], [65, 135], [51, 71], [92, 132], [77, 107],
+                 [51, 71], [50, 70], [43, 63], [45, 65], [76, 106]]
 init_timelist = []
 for _ in time_interval:
     init_timelist.append(_[0])
 nb_station = 5
 nb_pop = 10
 max_it = 10
+
+
+def findCriticalStation(solution, time_interval):
+    ass = solution['Assignment'][:]
+    scenario = []  # tasks to be set to upper time
+    for criticalStation in range(len(solution['Workload'])):
+        workload = []
+        for m in range(len(solution['Workload'])):
+            t = sum(time_interval[_][0] for _ in ass[m]) if m != criticalStation else sum(
+                time_interval[_][1] for _ in ass[m])
+            workload.append(t)
+        if workload.index(max(workload)) == criticalStation:
+            scenario.append({max(workload): ass[criticalStation]})
+    return scenario
 
 
 def evaluate_maxregret(scenarios):
@@ -42,9 +55,9 @@ def evaluate_maxregret(scenarios):
         scenario_time = []
         for tsk in range(len(pm)):
             scenario_time.append(time_interval[tsk][0] if tsk not in criticalTasks else time_interval[tsk][1])
-        scenario_bestct = ALBP(scenario_time, nb_station, PrecedenceTasks)
+        [scenario_bestct, _] = ALBP(scenario_time, nb_station, PrecedenceTasks)
         scenario_regret = list(dic.keys())[0] - scenario_bestct
-        max_regret = max(scenario_regret, scenario_regret)
+        max_regret = max(scenario_regret, max_regret)
     return max_regret
 
 
