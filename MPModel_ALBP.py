@@ -31,6 +31,7 @@ def ALBP(TaskTime, nbStations, PrecedenceTasks):
     assign_task_to_station = myModel.binary_var_matrix(TASKS, WORKSTATIONS, name='Assignment')
     cycle_time = myModel.integer_var(0, name='Cycle time')
     myModel.assignment = assign_task_to_station
+    myModel.cycletime = cycle_time
 
     '''Create constraints'''
     for k in WORKSTATIONS:
@@ -43,9 +44,8 @@ def ALBP(TaskTime, nbStations, PrecedenceTasks):
 
     '''Create model objective'''
     myModel.minimize(cycle_time)
-    return myModel
+    sol = myModel.solve()
+    return sol.objective_value, myModel
 
 
 # m = ALBP(d_TaskTime, d_nbStations, d_PrecedenceTasks)
-# m.solve()
-# m.print_solution()
