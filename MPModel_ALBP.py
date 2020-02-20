@@ -45,6 +45,7 @@ def ALBP(TaskTime, nbStations, PrecedenceTasks):
     '''Create model objective'''
     myModel.minimize(cycle_time)
     sol = myModel.solve()
+    assert sol
     return sol.objective_value, myModel
 
 
