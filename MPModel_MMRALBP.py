@@ -1,26 +1,6 @@
 from docplex.mp.model import Model
-from MPModel_ALBP import ALBP
+from MPModel_ALBP import ALBP_Model
 import time
-
-# ----------------------------------------------------------------------------
-# Default data
-# ----------------------------------------------------------------------------
-d_TaskTimeMin = [81, 109, 65, 51, 92, 77, 51, 50, 43, 45, 76]  # operating time of task i
-d_TaskTimeMax = [121, 159, 135, 71, 132, 107, 71, 70, 63, 65, 106]  # operating time of task i
-d_nbStations = 5  # number of workstations
-d_PrecedenceTasks = [  # immediate precedence tasks of task i
-    [],
-    [1],
-    [1],
-    [1],
-    [1],
-    [1, 2],
-    [1, 3, 4, 5],
-    [1, 2, 6],
-    [1, 3, 4, 5, 7],
-    [1, 2, 6, 8],
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-]
 
 
 # ----------------------------------------------------------------------------
@@ -38,18 +18,15 @@ def load_data(mdl, TaskTimeMin, TaskTimeMax, nbStations, PrecedenceTasks):
 
 
 def setup_variables(mdl):
-    TASKS, WORKSTATIONS = mdl.TASKS, mdl.WORKSTATIONS
     # --- Create variables. ---
     # the dictionary of decision variables, one variable for each assignment
-    mdl.assignment = mdl.binary_var_matrix(TASKS, WORKSTATIONS, name='Assignment')
+    mdl.assignment = mdl.binary_var_matrix(mdl.TASKS, mdl.WORKSTATIONS, name='Assignment')
     mdl.regret = mdl.integer_var(lb=0, name='Regret')
 
 
 def setup_initial_constraints(mdl):
     assignment = mdl.assignment
-    regret = mdl.regret
     TASKS, WORKSTATIONS, PrecedenceTasks = mdl.TASKS, mdl.WORKSTATIONS, mdl.PrecedenceTasks
-
     # --- Add constraints ---
     # Each task must be assigned.
     mdl.add_constraints(mdl.sum(assignment[i, k] for k in WORKSTATIONS) == 1 for i in TASKS)
@@ -77,32 +54,30 @@ def add_cuts(mdl):
         for j in WORKSTATIONS:
             if mdl.assignment[(i, j)].solution_value == 1:
                 A[i][j] = 1
-
     # find worst-case scenario of solution
-    max_regret = 0
+    max_regret, worst_case = 0, {}
     for station in WORKSTATIONS:
         s = dict()
         # 1.calculate task time list
-        temp_time = []
+        task_time = []
         for i in TASKS:
-            temp_time.append(
-                TaskTimeMax[i] * A[i][station] + TaskTimeMin[i] * (1 - A[i][station]))
-        s['Task time list'] = temp_time[:]
+            task_time.append(TaskTimeMax[i] * A[i][station] + TaskTimeMin[i] * (1 - A[i][station]))
+        s['Task time'] = task_time[:]
         # 2.calculate optimal cycle time
-        [s['Optimal CT'], _] = ALBP(temp_time, nbStations, PrecedenceTasks)
+        s['Optimal CT'] = ALBP_Model(task_time, nbStations, PrecedenceTasks).objective_value
         # 3.calculate cycle time of solution
-        s['CT'] = max(sum(temp_time[i] * A[i][k] for i in TASKS) for k in WORKSTATIONS)
+        CT_ = max(sum(task_time[i] * A[i][k] for i in TASKS) for k in WORKSTATIONS)
         # 4.calculate regret
-        s['Regret'] = s['CT'] - s['Optimal CT']
+        Regret_ = CT_ - s['Optimal CT']
         # find worst-case scenario: s
-        if s['Regret'] > max_regret:
-            worst_case, max_regret = s, s['Regret']
+        if Regret_ > max_regret:
+            worst_case, max_regret = s, Regret_
     # print(worst_case)
     # The set of scenarios is updated in order to include its worst-case scenario
     mdl.add_constraints(
-        mdl.regret >= mdl.sum(worst_case['Task time list'][i] * mdl.assignment[i, k] for i in TASKS) -
+        mdl.regret >= mdl.sum(worst_case['Task time'][i] * mdl.assignment[i, k] for i in TASKS) -
         worst_case['Optimal CT'] for k in WORKSTATIONS)
-    return {'Task time': worst_case['Task time list'], 'Optimal CT': worst_case['Optimal CT']}
+    return worst_case
 
 
 def solve(mdl):
@@ -110,16 +85,16 @@ def solve(mdl):
     # mdl.parameters.mip.limits.solutions = 1
     sol = mdl.solve()
     assert sol
-    cut = dict()
-    while True:
-        newcut = add_cuts(mdl)
-        if newcut == cut: break
+    cut, newcut, nbCuts = {}, add_cuts(mdl), 1
+    while newcut != cut:
+        # print(mdl.objective_value)
         sol = mdl.solve()
         assert sol
-        print(mdl.objective_value)
-        cut = newcut
+        cut, newcut = newcut, add_cuts(mdl)
+        nbCuts += 1
     end = time.process_time()
-    print("CPU time: %.3fs" % (end - start))
+    print("CPU time for MIP MMRALBP: %.3fs" % (end - start))
+    print("#cuts = %d" % (nbCuts-1))
 
 
 def print_information(mdl):
@@ -133,8 +108,8 @@ def print_solution(mdl):
     for i in mdl.TASKS:
         for j in mdl.WORKSTATIONS:
             if mdl.assignment[i, j].solution_value == 1:
-                print('Task %d: workstation %d' % (i, j))
-    print('Max regret=%d' % mdl.objective_value)
+                print('\tTask %d: workstation %d' % (i, j))
+    print('Max regret = %d' % mdl.objective_value)
 
 
 # ----------------------------------------------------------------------------
@@ -149,16 +124,36 @@ def build_mmralbp_model(TaskTimeMin, TaskTimeMax, nbStations, PrecedenceTasks):
     return mdl
 
 
-def build_test_mmralbp_model():
-    return build_mmralbp_model(d_TaskTimeMin, d_TaskTimeMax, d_nbStations, d_PrecedenceTasks)
-
+def run(TaskTimeMin, TaskTimeMax, nbStations, PrecedenceTasks):
+    model = build_mmralbp_model(TaskTimeMin, TaskTimeMax, nbStations, PrecedenceTasks)
+    solve(model)
+    return model
 
 # ----------------------------------------------------------------------------
 # Solve the model and display the result
 # ----------------------------------------------------------------------------
 if __name__ == "__main__":
+    # ----------------------------------------------------------------------------
+    # Default data
+    # ----------------------------------------------------------------------------
+    d_TaskTimeMin = [81, 109, 65, 51, 92, 77, 51, 50, 43, 45, 76]  # operating time of task i
+    d_TaskTimeMax = [121, 159, 135, 71, 132, 107, 71, 70, 63, 65, 106]  # operating time of task i
+    d_nbStations = 5  # number of workstations
+    d_PrecedenceTasks = [  # immediate precedence tasks of task i
+        [],
+        [1],
+        [1],
+        [1],
+        [1],
+        [1, 2],
+        [1, 3, 4, 5],
+        [1, 2, 6],
+        [1, 3, 4, 5, 7],
+        [1, 2, 6, 8],
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    ]
     # Build model
-    model = build_test_mmralbp_model()
+    model = build_mmralbp_model(d_TaskTimeMin, d_TaskTimeMax, d_nbStations, d_PrecedenceTasks)
     print_information(model)
     # Solve the model and print solution
     solve(model)
