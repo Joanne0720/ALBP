@@ -68,10 +68,10 @@ def add_cuts(mdl):
         # 3.calculate cycle time of solution
         CT_ = max(sum(task_time[i] * A[i][k] for i in TASKS) for k in WORKSTATIONS)
         # 4.calculate regret
-        Regret_ = CT_ - s['Optimal CT']
+        s['Regret'] = CT_ - s['Optimal CT']
         # find worst-case scenario: s
-        if Regret_ > max_regret:
-            worst_case, max_regret = s, Regret_
+        if s['Regret'] > max_regret:
+            worst_case, max_regret = s, s['Regret']
     # print(worst_case)
     # The set of scenarios is updated in order to include its worst-case scenario
     mdl.add_constraints(
@@ -85,13 +85,18 @@ def solve(mdl):
     # mdl.parameters.mip.limits.solutions = 1
     sol = mdl.solve()
     assert sol
+    lb = mdl.objective_value
     cut, newcut, nbCuts = {}, add_cuts(mdl), 1
-    while newcut != cut:
-        # print(mdl.objective_value)
+    ub = newcut['Regret']
+    while lb < ub:
+        lb = max(mdl.objective_value, lb)
+        # print('lb:', lb)
         sol = mdl.solve()
         assert sol
         cut, newcut = newcut, add_cuts(mdl)
         nbCuts += 1
+        ub = min(newcut['Regret'], ub)
+        # print('ub:', ub)
     end = time.process_time()
     print("CPU time for MIP MMRALBP: %.3fs" % (end - start))
     print("#cuts = %d" % (nbCuts-1))
@@ -128,6 +133,7 @@ def run(TaskTimeMin, TaskTimeMax, nbStations, PrecedenceTasks):
     model = build_mmralbp_model(TaskTimeMin, TaskTimeMax, nbStations, PrecedenceTasks)
     solve(model)
     return model
+
 
 # ----------------------------------------------------------------------------
 # Solve the model and display the result
