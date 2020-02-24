@@ -37,20 +37,10 @@ def ALBP_Model(TaskTime, nbStations, PrecedenceTasks):
 
 if __name__ == "__main__":
     '''Default problem data'''
-    d_TaskTime = [81, 109, 65, 51, 92, 77, 51, 50, 43, 45, 76]  # operating time of task i
-    d_nbStations = 5  # number of workstations
-    d_PrecedenceTasks = [  # immediate precedence tasks of task i
-        [],
-        [1],
-        [1],
-        [1],
-        [1],
-        [1, 2],
-        [1, 3, 4, 5],
-        [1, 2, 6],
-        [1, 3, 4, 5, 7],
-        [1, 2, 6, 8],
-        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    ]
-    m = ALBP_Model(d_TaskTime, d_nbStations, d_PrecedenceTasks)
+    t = [7, 19, 15, 5, 12, 10, 8, 16, 2, 6, 21, 10, 9, 4, 14, 7, 14, 17, 10, 16, 1, 9, 25, 14, 14, 2, 10, 7, 20]
+    n = 7
+    p = [[], [], [1], [3], [4], [2], [], [5, 6], [7], [9], [8], [7], [5], [10], [10, 12], [8, 14], [11, 13], [16], [15],
+         [17], [19], [18, 21], [20, 22], [23], [1, 7], [2], [26], [23], [24, 25, 27, 28]]
+    m = ALBP_Model(t, n, p)
+    print(m.cputime)
     print(m.objective_value)

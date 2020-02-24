@@ -56,13 +56,13 @@ class BalancingSolution:
 
     def decoding(self):
         # decoding
-        init_cycletime, cycletime = sum(self.TimeList) // self.nbStations, sum(self.TimeList)
+        init_cycletime, cycletime = max(sum(self.TimeList) // self.nbStations, max(self.TimeList)), sum(self.TimeList)
         while cycletime > init_cycletime:
             task_unassigned = self.TaskSequence[:]
             workload, potential_workload = [], []
             station_num = 0
             task_to_station = []
-            while station_num < self.nbStations:
+            while station_num < self.nbStations and task_unassigned:
                 currTime, currTasks = 0, []
                 while task_unassigned and currTime + self.TimeList[task_unassigned[0]] <= init_cycletime:
                     currTime += self.TimeList[task_unassigned[0]]
@@ -112,7 +112,7 @@ class BalancingPopulation:
 
 
 # ----------------------------------------------------------------------------
-def WOAforALBP(TimeList,nbStations,PrecedenceTasks,nbWhales,maxIter):
+def WOAforALBP(TimeList,nbStations,PrecedenceTasks,nbWhales,maxIter,opt=None):
     start = time.process_time()
     # initialization
     P = BalancingPopulation(TimeList, nbStations, PrecedenceTasks, nbWhales)
@@ -128,14 +128,18 @@ def WOAforALBP(TimeList,nbStations,PrecedenceTasks,nbWhales,maxIter):
                 sol.TaskSequence = SpiralUpdating(sol.TaskSequence, bestSol.TaskSequence, 4)
             sol.decoding()
         bestSol = P.bestSolution()
+        if opt and bestSol.CycleTime <= opt: break
         # print('Cycle time =', bestSol.CycleTime)
         it += 1
     end = time.process_time()
-    print("CPU time of WOA for ALBP: %.3fs" % (end - start))
-    return bestSol
+    # print("CPU time of WOA for ALBP: %.3fs" % (end - start))
+    return bestSol, end - start
 
-
+#
 # if __name__ == "__main__":
-#     bestSol = WOAforALBP(d_timelist, d_nb_station, d_PrecedenceTasks, d_nb_pop, d_max_it)
+#     t=[7, 19, 15, 5, 12, 10, 8, 16, 2, 6, 21, 10, 9, 4, 14, 7, 14, 17, 10, 16, 1, 9, 25, 14, 14, 2, 10, 7, 20]
+#     n=7
+#     p=[[], [], [1], [3], [4], [2], [], [5, 6], [7], [9], [8], [7], [5], [10], [10, 12], [8, 14], [11, 13], [16], [15], [17], [19], [18, 21], [20, 22], [23], [1, 7], [2], [26], [23], [24, 25, 27, 28]]
+#     bestSol,cputime = WOAforALBP(d_timelist, d_nb_station, d_PrecedenceTasks, d_nb_pop, d_max_it)
 #     # print solution
 #     bestSol.printSolution()

@@ -59,9 +59,10 @@ def add_cuts(mdl):
     for station in WORKSTATIONS:
         s = dict()
         # 1.calculate task time list
-        task_time = []
+        task_time = TaskTimeMin[:]
         for i in TASKS:
-            task_time.append(TaskTimeMax[i] * A[i][station] + TaskTimeMin[i] * (1 - A[i][station]))
+            if A[i][station] == 1:
+                task_time[i] = TaskTimeMax[i]
         s['Task time'] = task_time[:]
         # 2.calculate optimal cycle time
         s['Optimal CT'] = ALBP_Model(task_time, nbStations, PrecedenceTasks).objective_value
@@ -88,18 +89,19 @@ def solve(mdl):
     lb = mdl.objective_value
     cut, newcut, nbCuts = {}, add_cuts(mdl), 1
     ub = newcut['Regret']
-    while lb < ub:
+    while ub - lb >1 and time.process_time() - start <= 600:
         lb = max(mdl.objective_value, lb)
-        # print('lb:', lb)
+        print('lb:', lb)
         sol = mdl.solve()
         assert sol
         cut, newcut = newcut, add_cuts(mdl)
         nbCuts += 1
         ub = min(newcut['Regret'], ub)
-        # print('ub:', ub)
+        print('ub:', ub)
     end = time.process_time()
-    print("CPU time for MIP MMRALBP: %.3fs" % (end - start))
-    print("#cuts = %d" % (nbCuts-1))
+    mdl.cputime = end - start
+    # print("CPU time for MIP MMRALBP: %.3fs" % (end - start))
+    # print("#cuts = %d" % (nbCuts-1))
 
 
 def print_information(mdl):
@@ -142,24 +144,14 @@ if __name__ == "__main__":
     # ----------------------------------------------------------------------------
     # Default data
     # ----------------------------------------------------------------------------
-    d_TaskTimeMin = [81, 109, 65, 51, 92, 77, 51, 50, 43, 45, 76]  # operating time of task i
-    d_TaskTimeMax = [121, 159, 135, 71, 132, 107, 71, 70, 63, 65, 106]  # operating time of task i
-    d_nbStations = 5  # number of workstations
-    d_PrecedenceTasks = [  # immediate precedence tasks of task i
-        [],
-        [1],
-        [1],
-        [1],
-        [1],
-        [1, 2],
-        [1, 3, 4, 5],
-        [1, 2, 6],
-        [1, 3, 4, 5, 7],
-        [1, 2, 6, 8],
-        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-    ]
+    t = [7, 19, 15, 5, 12, 10, 8, 16, 2, 6, 21, 10, 9, 4, 14, 7, 14, 17, 10, 16, 1, 9, 25, 14, 14, 2, 10, 7, 20]
+    p = [[], [], [1], [3], [4], [2], [], [5, 6], [7], [9], [8], [7], [5], [10], [10, 12], [8, 14], [11, 13], [16], [15],
+         [17], [19], [18, 21], [20, 22], [23], [1, 7], [2], [26], [23], [24, 25, 27, 28]]
+    tmax = [7, 22, 21, 6, 22, 9, 8, 28, 1, 10, 25, 16, 12, 6, 4, 7, 18, 25, 2, 27, 1, 13, 15, 12, 18, 3, 11, 7, 7]
+    tmin = [7, 16, 14, 1, 11, 9, 3, 13, 1, 5, 7, 8, 6, 2, 3, 3, 13, 17, 1, 11, 1, 6, 6, 10, 6, 2, 6, 1, 7]
+    n = 7
     # Build model
-    model = build_mmralbp_model(d_TaskTimeMin, d_TaskTimeMax, d_nbStations, d_PrecedenceTasks)
+    model = build_mmralbp_model(tmin, tmax, n, p)
     print_information(model)
     # Solve the model and print solution
     solve(model)

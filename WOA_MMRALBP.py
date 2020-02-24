@@ -4,27 +4,18 @@ import time
 from Exploitation import ShrinkingEncircling
 from Exploitation import SpiralUpdating
 from MPModel_ALBP import ALBP_Model
+from WOA_ALBP import WOAforALBP
+import DataGenerator
 
 # Data
-d_PrecedenceTasks = [  # immediate precedence tasks of task i
-    [],
-    [1],
-    [1],
-    [1],
-    [1],
-    [1, 2],
-    [1, 3, 4, 5],
-    [1, 2, 6],
-    [1, 3, 4, 5, 7],
-    [1, 2, 6, 8],
-    [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-]
-d_TaskTimeMin = [81, 109, 65, 51, 92, 77, 51, 50, 43, 45, 76]  # operating time of task i
-d_TaskTimeMax = [121, 159, 135, 71, 132, 107, 71, 70, 63, 65, 106]  # operating time of task i
-d_nbStations = 5
+d_TaskTimeMin = [7, 1, 6, 8, 15, 11, 3, 12, 8, 14, 4, 8, 5, 21, 3, 8, 6, 3, 1, 4, 43, 13, 6, 25, 24, 6, 4, 17, 4, 5, 1, 2, 11, 2, 4, 9, 2, 6, 3, 1, 21, 1, 2, 4, 4]
+d_TaskTimeMax = [14, 9, 12, 16, 31, 14, 15, 14, 13, 19, 8, 10, 8, 36, 8, 15, 12, 6, 1, 8, 84, 22, 33, 32, 44, 11, 6, 17, 4, 5, 7, 2, 25, 5, 5, 15, 2, 13, 3, 1, 37, 12, 3, 9, 4]
+d_nbStations = 8  # number of workstations
+_, d_PrecedenceTasks = DataGenerator.loadData('data/KILBRID.IN2')
+
 # Parameters
-d_nb_pop = 10
-d_max_it = 10
+d_nb_pop = 50
+d_max_it = 50
 
 
 # ----------------------------------------------------------------------------
@@ -61,14 +52,16 @@ class RobustBalancingSolution:
 
     def decoding(self):
         # decoding
+        TaskSequence = self.TaskSequence
+        nbStations = self.nbStations
         TimeList = self.TaskTimeMin
-        init_cycletime, cycletime = sum(TimeList) // self.nbStations, sum(TimeList)
+        init_cycletime, cycletime = max(sum(TimeList) // self.nbStations, max(TimeList)), sum(TimeList)
         while cycletime > init_cycletime:
-            task_unassigned = self.TaskSequence[:]
+            task_unassigned = TaskSequence[:]
             workload, potential_workload = [], []
             station_num = 0
             task_to_station = []
-            while station_num < self.nbStations:
+            while station_num < nbStations and task_unassigned:
                 currTime, currTasks = 0, []
                 while task_unassigned and currTime + TimeList[task_unassigned[0]] <= init_cycletime:
                     currTime += TimeList[task_unassigned[0]]
@@ -90,16 +83,18 @@ class RobustBalancingSolution:
     def evaluateMaxRegret(self):
         # find worst-case scenario of solution
         max_regret = 0
-        for station in range(self.nbStations):
+        for station in range(len(self.TaskAssignment)):
             s = dict()
             # 1.calculate task time list
             task_time = self.TaskTimeMin[:]
             for _ in self.TaskAssignment[station]:
                 task_time[_] = self.TaskTimeMax[_]
             # 2.calculate optimal cycle time
-            OptimalCT = ALBP_Model(task_time, self.nbStations, self.PrecedenceTasks).objective_value
+            # OptimalCT = ALBP_Model(task_time, self.nbStations, self.PrecedenceTasks).objective_value
+            sol, _ = WOAforALBP(task_time, self.nbStations, self.PrecedenceTasks, 30, 30)
+            OptimalCT = sol.CycleTime
             # 3.calculate cycle time of solution
-            CT = max(sum(task_time[task] for task in self.TaskAssignment[k]) for k in range(self.nbStations))
+            CT = max(sum(task_time[task] for task in self.TaskAssignment[k]) for k in range(len(self.TaskAssignment)))
             # 4.calculate regret
             Regret = CT - OptimalCT
             # find worst-case scenario: s
@@ -139,7 +134,7 @@ class RobustBalancingPopulation:
 
 
 # ----------------------------------------------------------------------------
-def WOAforMMRALBP(TaskTimeMin, TaskTimeMax, nbStations, PrecedenceTasks, nbWhales, maxIter):
+def WOAforMMRALBP(TaskTimeMin, TaskTimeMax, nbStations, PrecedenceTasks, nbWhales, maxIter, opt=None):
     start = time.process_time()
     # initialization
     P = RobustBalancingPopulation(TaskTimeMin, TaskTimeMax, nbStations, PrecedenceTasks, nbWhales)
@@ -155,11 +150,12 @@ def WOAforMMRALBP(TaskTimeMin, TaskTimeMax, nbStations, PrecedenceTasks, nbWhale
                 sol.TaskSequence = SpiralUpdating(sol.TaskSequence, bestSol.TaskSequence, 4)
             sol.decoding()
         bestSol = P.bestSolution()
+        if opt and bestSol.MaxRegret <= opt: break
         # print('Cycle time =', bestSol.CycleTime)
         it += 1
     end = time.process_time()
-    print("CPU time of WOA for MMRALBP: %.3fs" % (end - start))
-    return bestSol
+    # print("CPU time of WOA for MMRALBP: %.3fs" % (end - start))
+    return bestSol, end - start
 
 
 if __name__ == "__main__":
